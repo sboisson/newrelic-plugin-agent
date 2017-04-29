@@ -189,14 +189,21 @@ class ATS(base.JSONStatsPlugin):
 
     def add_transactions_datapoints(self, stats):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
-            count = long(stats.get(ATS.TRANSACTION_COUNT_PREFIX + transaction) or 0)
-            time = float(stats.get(ATS.TRANSACTION_TIME_PREFIX + transaction) or 0)
-            self.add_derive_timing_value(
-                'Transactions/%s' % text,
-                'seconds|transactions',
-                time,
-                count
-            )
+            count_key = ATS.TRANSACTION_COUNT_PREFIX + transaction
+
+            count = long(stats.get(count_key) or 0)
+            previous_count = self.derive_last_interval.get(count_key)
+
+            if previous_count is not None:
+                time = float(stats.get(ATS.TRANSACTION_TIME_PREFIX + transaction) or 0)
+                self.add_derive_value(
+                    'Transactions/%s' % text,
+                    'secs|transactions',
+                    time,
+                    count - previous_count
+                )
+
+            self.derive_last_interval[count_key] = count
 
     def add_hostdb_datapoints(self, stats):
         dns_hits = long(stats.get('proxy.node.hostdb.total_hits') or 0)

@@ -179,7 +179,7 @@ class ATS(base.JSONStatsPlugin):
 
     def add_responses_datapoints(self, stats):
         for code, text in ATS.HTTP_STATUS_CODES.items():
-            value = stats.get('proxy.process.http.%s_response' % code)
+            value = stats.get('proxy.process.http.%s_responses' % code)
             if value is not None:
                 self.add_derive_value(
                     'Responses/%s %s' % (code, text),

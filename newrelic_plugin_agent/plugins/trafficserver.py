@@ -118,7 +118,7 @@ class ATS(base.JSONStatsPlugin):
     }
 
     # Transactions Count
-    TRANSACTION_COUNT_PREFIX = 'proxy.node.http.transaction_counts.'
+    TRANSACTION_COUNT_PREFIX = 'proxy.process.http.transaction_counts.'
     TRANSACTION_TIME_PREFIX = 'proxy.process.http.transaction_totaltime.'
     TRANSACTION_TYPES = {
         'hit_fresh': 'Hits/Fresh',
@@ -133,7 +133,7 @@ class ATS(base.JSONStatsPlugin):
         'errors.pre_accept_hangups': 'Errors/Pre-Accept Hangups',
         'errors.early_hangups': 'Errors/Early Hangup',
         'errors.empty_hangups': 'Errors/Empty Hangup',
-        'errors.other': 'Erros/Other',
+        'errors.other': 'Errors/Other',
         'other.unclassified': 'Unclassified',
     }
 
@@ -181,11 +181,11 @@ class ATS(base.JSONStatsPlugin):
         for code, text in ATS.HTTP_STATUS_CODES.items():
             value = stats.get('proxy.process.http.%s_responses' % code)
             if value is not None:
-                self.add_derive_value(
-                    'Responses/%s %s' % (code, text),
-                    'responses',
-                    long(value)
-                )
+                if code[1] == 'x':
+                    metric_name = 'Scoreboard/Responses/%s %s' % (code, text)
+                else:
+                    metric_name = 'Responses/%s %s' % (code, text)
+                self.add_derive_value(metric_name, 'responses', long(value))
 
     def add_transactions_datapoints(self, stats):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
@@ -206,8 +206,8 @@ class ATS(base.JSONStatsPlugin):
             self.derive_last_interval[count_key] = count
 
     def add_hostdb_datapoints(self, stats):
-        dns_hits = long(stats.get('proxy.node.hostdb.total_hits') or 0)
-        dns_lookup = long(stats.get('proxy.node.hostdb.total_lookups') or 0)
+        dns_hits = long(stats.get('proxy.process.hostdb.total_hits') or 0)
+        dns_lookup = long(stats.get('proxy.process.hostdb.total_lookups') or 0)
 
         self.add_derive_value(
             'HostDB/Entries',

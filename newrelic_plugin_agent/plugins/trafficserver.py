@@ -198,7 +198,7 @@ class ATS(base.JSONStatsPlugin):
                 if code[1] == 'x':
                     metric_name = 'Scoreboard/Responses/%s %s' % (code, text)
                 else:
-                    metric_name = 'Responses/%s %s' % (code, text)
+                    metric_name = 'Responses/%cxx/%s %s' % (code[0], code, text)
                 self.add_derive_value(metric_name, 'responses', long(value))
 
     def add_transactions_datapoints(self, stats):

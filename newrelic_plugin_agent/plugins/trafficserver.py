@@ -186,12 +186,12 @@ class ATS(base.JSONStatsPlugin):
             count = long(stats.get(ATS.TRANSACTION_COUNT_PREFIX + transaction) or 0)
             time = float(stats.get(ATS.TRANSACTION_TIME_PREFIX + transaction) or 0)
             self.add_derive_value(
-                'Transactions/Counts/%s' % name,
+                'Transactions/Counts/%s' % transaction,
                 'transactions',
                 count
             )
             self.add_derive_timing_value(
-                'Transactions/Timing/%s' % name,
+                'Transactions/Timing/%s' % transaction,
                 'seconds',
                 time,
                 count

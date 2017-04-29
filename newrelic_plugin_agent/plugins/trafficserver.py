@@ -175,7 +175,7 @@ class ATS(base.JSONStatsPlugin):
         outgoing = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
         if outgoing > 0:
             requests_ratio = 100 * float(incoming) / outgoing
-            self.add_gauge_value('Scoreboard/Requests/Saved', 'ratio', dns_ratio)
+            self.add_gauge_value('Scoreboard/Requests/Saved', '%', dns_ratio)
 
     def add_responses_datapoints(self, stats):
         for code, text in ATS.HTTP_STATUS_CODES.items():
@@ -211,7 +211,7 @@ class ATS(base.JSONStatsPlugin):
         self.add_derive_value('HostDB/Lookups', 'hostnames', dns_lookup)
         if dns_lookup > 0:
             dns_ratio = 100 * float(dns_hits) / dns_lookup
-            self.add_gauge_value('Scoreboard/HostDB/Hits', 'ratio', dns_ratio)
+            self.add_gauge_value('Scoreboard/HostDB/Hits', '%', dns_ratio)
 
     def add_cache_datapoints(self, stats):
         megas = 1000000
@@ -224,23 +224,23 @@ class ATS(base.JSONStatsPlugin):
 
         total = hits + misses
         if total > 0:
-            self.add_gauge_value('Scoreboard/Cache/Hits', 'ratio', 100 * float(hits) / total)
-            self.add_gauge_value('Scoreboard/Storage/Hits', 'ratio', 100 * float(hits - hits_mem) / total)
-            self.add_gauge_value('Scoreboard/Memory/Hits', 'ratio', 100 * float(hits_mem) / total)
+            self.add_gauge_value('Scoreboard/Cache/Hits', '%', 100 * float(hits) / total)
+            self.add_gauge_value('Scoreboard/Storage/Hits', '%', 100 * float(hits - hits_mem) / total)
+            self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(hits_mem) / total)
 
         bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0) / megas
         bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0) / megas
         self.add_derive_value('Cache/Storage/Size', 'megabytes', bytes_total)
         self.add_derive_value('Cache/Storage/Used', 'megabytes', bytes_used)
         if bytes_total > 0:
-            self.add_gauge_value('Scoreboard/Storage/Used', 'ratio', 100 * float(bytes_used) / bytes_total)
+            self.add_gauge_value('Scoreboard/Storage/Used', '%', 100 * float(bytes_used) / bytes_total)
 
         mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0) / megas
         mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0) / megas
         self.add_derive_value('Cache/Memory/Size', 'megabytes', mem_total)
         self.add_derive_value('Cache/Memory/Used', 'megabytes', mem_used)
         if mem_total > 0:
-            self.add_gauge_value('Scoreboard/Memory/Use', 'ratio', 100 * float(mem_used) / mem_total)
+            self.add_gauge_value('Scoreboard/Memory/Use', '%', 100 * float(mem_used) / mem_total)
 
         served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0) / 1000000
         origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0) / 1000000
@@ -248,4 +248,4 @@ class ATS(base.JSONStatsPlugin):
         self.add_derive_value('Cache/Bandwidth/Served', 'megabytes', served_bytes)
         if served_bytes > 0:
             bandwidth_gain = 100 * float(served_bytes - origin_bytes) / served_bytes
-            self.add_gauge_value('Scoreboard/Bandwidth/Saved', 'ratio', bandwidth_gain)
+            self.add_gauge_value('Scoreboard/Bandwidth/Saved', '%', bandwidth_gain)

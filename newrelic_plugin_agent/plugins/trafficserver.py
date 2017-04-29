@@ -244,10 +244,10 @@ class ATS(base.JSONStatsPlugin):
         memory_hits = self.add_derive_value('Cache/Performance/Hits/Memory', 'requests', hits_mem)
         misses = self.add_derive_value('Cache/Performance/Misses', 'requests', misses)
 
-        if hits and misses:
-            total = hits + misses
+        if storage_hits and memory_hits and misses:
+            total = storage_hits + memory_hits + misses
             self.add_gauge_value('Scoreboard/Cache/Hits', '%', 100 * float(storage_hits + memory_hits) / total)
-            self.add_gauge_value('Scoreboard/Storage/Hits', '%', 100 * float(storage_hits) / total)
+            self.add_gauge_value('Scoreboard/Disk/Hits', '%', 100 * float(storage_hits) / total)
             self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(memory_hits) / total)
 
         # Bandwidth

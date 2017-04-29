@@ -95,9 +95,9 @@ class ATS(base.JSONStatsPlugin):
 
     # Connections
     CONNECTIONS_TYPES = {
-        'proxy.process.http.total_client_connections': 'Client',
-        'proxy.process.http.total_server_connections': 'Server',
-        'proxy.process.http.origin_connections_throttled_out': 'Throttled Out',
+        'proxy.process.http.total_client_connections': 'HTTP/Client',
+        'proxy.process.http.total_server_connections': 'HTTP/Server',
+        'proxy.process.http.origin_connections_throttled_out': 'HTTP/Server/Throttled',
     }
 
     # Requests

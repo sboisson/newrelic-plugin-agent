@@ -103,8 +103,8 @@ class ATS(base.JSONStatsPlugin):
     # Requests
     REQUESTS_PREFIX = 'proxy.process.http.'
     REQUESTS_TYPES = {
-        'incoming_requests': 'Incoming',
-        'outgoing_requests': 'Outgoing',
+        'incoming_requests': 'Totals/Incoming',
+        'outgoing_requests': 'Totals/Outgoing',
 
         'head_requests': 'Methods/HEAD',
         'get_requests': 'Methods/GET',
@@ -121,12 +121,12 @@ class ATS(base.JSONStatsPlugin):
     TRANSACTION_COUNT_PREFIX = 'proxy.node.http.transaction_counts.'
     TRANSACTION_TIME_PREFIX = 'proxy.process.http.transaction_totaltime.'
     TRANSACTION_TYPES = {
-        'hit_fresh': 'Hits Fresh',
-        'hit_revalidated': 'Hits Revalidated',
-        'miss_cold': 'Misses Cold',
-        'miss_not_cacheable': 'Misses No Cacheable',
-        'miss_changed': 'Misses Changed',
-        'miss_client_no_cache': 'Misses No Cache',
+        'hit_fresh': 'Hits/Fresh',
+        'hit_revalidated': 'Hits/Revalidated',
+        'miss_cold': 'Misses/Cold',
+        'miss_not_cacheable': 'Misses/Not Cacheable',
+        'miss_changed': 'Misses/Changed',
+        'miss_client_no_cache': 'Misses/No Cache',
         'errors.connect_failed': 'Errors/Connection Failed',
         'errors.aborts': 'Errors/Aborts',
         'errors.possible_aborts': 'Errors/Possible Aborts',
@@ -171,12 +171,18 @@ class ATS(base.JSONStatsPlugin):
                 value
             )
 
+        incoming = long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0)
+        outgoing = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
+        if outgoing > 0:
+            requests_ratio = 100 * float(incoming) / outgoing
+            self.add_gauge_value('Scoreboard/Requests/Saved', 'ratio', dns_ratio)
+
     def add_responses_datapoints(self, stats):
         for code, text in ATS.HTTP_STATUS_CODES.items():
             value = stats.get('proxy.process.http.%s_response' % code)
             if value is not None:
                 self.add_derive_value(
-                    'Responses/Status/%s %s' % (code, text),
+                    'Responses/%s %s' % (code, text),
                     'responses',
                     long(value)
                 )
@@ -185,14 +191,9 @@ class ATS(base.JSONStatsPlugin):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
             count = long(stats.get(ATS.TRANSACTION_COUNT_PREFIX + transaction) or 0)
             time = float(stats.get(ATS.TRANSACTION_TIME_PREFIX + transaction) or 0)
-            self.add_derive_value(
-                'Transactions/Counts/%s' % transaction,
-                'transactions',
-                count
-            )
             self.add_derive_timing_value(
-                'Transactions/Timing/%s' % transaction,
-                'seconds',
+                'Transactions/%s' % text,
+                'seconds|transactions',
                 time,
                 count
             )
@@ -210,39 +211,41 @@ class ATS(base.JSONStatsPlugin):
         self.add_derive_value('HostDB/Lookups', 'hostnames', dns_lookup)
         if dns_lookup > 0:
             dns_ratio = 100 * float(dns_hits) / dns_lookup
-            self.add_gauge_value('HostDB/Hit Ratio', 'ratio', dns_ratio)
+            self.add_gauge_value('Scoreboard/HostDB/Hits', 'ratio', dns_ratio)
 
     def add_cache_datapoints(self, stats):
+        megas = 1000000
         hits = long(stats.get('proxy.node.cache_total_hits') or 0)
         hits_mem = long(stats.get('proxy.node.cache_total_hits_mem') or 0)
         misses = long(stats.get('proxy.node.cache_total_misses') or 0)
-        self.add_derive_value('Cache/Statistics/Hits', 'requests', hits)
-        self.add_derive_value('Cache/Statistics/Memory Hits', 'requests', hits_mem)
-        self.add_derive_value('Cache/Statistics/Misses', 'requests', misses)
+        self.add_derive_value('Cache/Performance/Hits/Storage', 'requests', hits - hits_mem)
+        self.add_derive_value('Cache/Performance/Hits/Memory', 'requests', hits_mem)
+        self.add_derive_value('Cache/Performance/Misses', 'requests', misses)
 
         total = hits + misses
         if total > 0:
-            self.add_gauge_value('Cache/Statistics/Hit Ratio', 'ratio', 100 * float(hits) / total)
-            self.add_gauge_value('Cache/Statistics/Memory Hit Ratio', 'ratio', 100 * float(hits_mem) / total)
+            self.add_gauge_value('Scoreboard/Cache/Hits', 'ratio', 100 * float(hits) / total)
+            self.add_gauge_value('Scoreboard/Storage/Hits', 'ratio', 100 * float(hits - hits_mem) / total)
+            self.add_gauge_value('Scoreboard/Memory/Hits', 'ratio', 100 * float(hits_mem) / total)
 
-        bytes_total = long(stats.get('proxy.process.cache.bytes_total') or 0)
-        bytes_used = long(stats.get('proxy.process.cache.bytes_used') or 0)
-        self.add_derive_value('Cache/Storage/Size', 'bytes', bytes_total)
-        self.add_derive_value('Cache/Storage/Used', 'bytes', bytes_used)
+        bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0) / megas
+        bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0) / megas
+        self.add_derive_value('Cache/Storage/Size', 'megabytes', bytes_total)
+        self.add_derive_value('Cache/Storage/Used', 'megabytes', bytes_used)
         if bytes_total > 0:
-            self.add_gauge_value('Cache/Storage/Use', 'ratio', 100 * float(bytes_used) / bytes_total)
+            self.add_gauge_value('Scoreboard/Storage/Used', 'ratio', 100 * float(bytes_used) / bytes_total)
 
-        mem_total = long(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0)
-        mem_used = long(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0)
-        self.add_derive_value('Cache/Memory/Size', 'bytes', mem_total)
-        self.add_derive_value('Cache/Memory/Used', 'bytes', mem_used)
+        mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0) / megas
+        mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0) / megas
+        self.add_derive_value('Cache/Memory/Size', 'megabytes', mem_total)
+        self.add_derive_value('Cache/Memory/Used', 'megabytes', mem_used)
         if mem_total > 0:
-            self.add_gauge_value('Cache/Memory/Use', 'ratio', 100 * float(mem_used) / mem_total)
+            self.add_gauge_value('Scoreboard/Memory/Use', 'ratio', 100 * float(mem_used) / mem_total)
 
-        served_bytes = long(stats.get('proxy.node.user_agent_total_bytes') or 0)
-        origin_bytes = long(stats.get('proxy.node.origin_server_total_bytes') or 0)
-        self.add_derive_value('Cache/Bandwidth/Origin', 'bytes', origin_bytes)
-        self.add_derive_value('Cache/Bandwidth/Served', 'bytes', served_bytes)
+        served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0) / 1000000
+        origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0) / 1000000
+        self.add_derive_value('Cache/Bandwidth/Origin', 'megabytes', origin_bytes)
+        self.add_derive_value('Cache/Bandwidth/Served', 'megabytes', served_bytes)
         if served_bytes > 0:
             bandwidth_gain = 100 * float(served_bytes - origin_bytes) / served_bytes
-            self.add_gauge_value('Cache/Bandwidth/Gain', 'ratio', bandwidth_gain)
+            self.add_gauge_value('Scoreboard/Bandwidth/Saved', 'ratio', bandwidth_gain)

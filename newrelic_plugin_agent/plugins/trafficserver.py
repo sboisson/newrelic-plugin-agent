@@ -189,7 +189,7 @@ class ATS(base.JSONStatsPlugin):
         outgoing = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
         if outgoing > 0:
             requests_ratio = 100 * float(incoming) / outgoing
-            self.add_gauge_value('Scoreboard/Requests/Saved', '%', dns_ratio)
+            self.add_gauge_value('Scoreboard/Requests/Saved', '%', requests_ratio)
 
     def add_responses_datapoints(self, stats):
         for code, text in ATS.HTTP_STATUS_CODES.items():

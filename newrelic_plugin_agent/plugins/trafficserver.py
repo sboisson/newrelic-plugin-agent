@@ -162,6 +162,20 @@ class ATS(base.JSONStatsPlugin):
                 value
             )
 
+        count_key = 'proxy.process.http.total_client_connections'
+        previous_count = self.derive_last_interval.get(count_key)
+        count = long(stats.get(count_key) or 0)
+        if previous_count is not None:
+            time = float(stats.get('proxy.process.http.total_transactions_time') or 0)
+            self.add_derive_value(
+                'Connections/HTTP/Client',
+                'secs|connections',
+                time,
+                count - previous_count
+            )
+
+        self.derive_last_interval[count_key] = count
+
     def add_requests_datapoints(self, stats):
         for request_type, name in ATS.REQUESTS_TYPES.items():
             value = long(stats.get(ATS.REQUESTS_PREFIX + request_type) or 0)

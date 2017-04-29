@@ -20,4 +20,6 @@ available = {
     'rabbitmq': 'newrelic_plugin_agent.plugins.rabbitmq.RabbitMQ',
     'redis': 'newrelic_plugin_agent.plugins.redis.Redis',
     'riak': 'newrelic_plugin_agent.plugins.riak.Riak',
-    'uwsgi': 'newrelic_plugin_agent.plugins.uwsgi.uWSGI'}
+    'uwsgi': 'newrelic_plugin_agent.plugins.uwsgi.uWSGI',
+    'trafficserver': 'newrelic_plugin_agent.plugins.trafficserver.ATS',
+}

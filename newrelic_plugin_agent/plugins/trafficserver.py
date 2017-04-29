@@ -164,7 +164,7 @@ class ATS(base.JSONStatsPlugin):
 
     def add_requests_datapoints(self, stats):
         for request_type, name in ATS.REQUESTS_TYPES.items():
-            value = long(stats.get(REQUESTS_PREFIX + request_type) or 0)
+            value = long(stats.get(ATS.REQUESTS_PREFIX + request_type) or 0)
             self.add_derive_value(
                 'Requests/%s' % name,
                 'requests',
@@ -183,8 +183,8 @@ class ATS(base.JSONStatsPlugin):
 
     def add_transactions_datapoints(self, stats):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
-            count = long(stats.get(TRANSACTION_COUNT_PREFIX + transaction) or 0)
-            time = float(stats.get(TRANSACTION_TIME_PREFIX + transaction) or 0)
+            count = long(stats.get(ATS.TRANSACTION_COUNT_PREFIX + transaction) or 0)
+            time = float(stats.get(ATS.TRANSACTION_TIME_PREFIX + transaction) or 0)
             self.add_derive_value(
                 'Transactions/Counts/%s' % name,
                 'transactions',

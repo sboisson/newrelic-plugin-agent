@@ -55,6 +55,7 @@ class Plugin(object):
         if value is None:
             value = 0
         metric = self.metric_name(metric_name, units)
+        cval = None
         if metric not in self.derive_last_interval.keys():
             LOGGER.debug('Bypassing initial %s value for first run', metric)
             self.derive_values[metric] = self.metric_payload(0, count=0)
@@ -65,6 +66,7 @@ class Plugin(object):
                          metric, self.derive_last_interval[metric], value,
                          self.derive_values[metric])
         self.derive_last_interval[metric] = value
+        return cval
 
     def add_derive_timing_value(self, metric_name, units, count, total_value,
                                 last_value=None):
@@ -180,7 +182,7 @@ class Plugin(object):
         """
         if not value:
             value = 0
-            
+
         if isinstance(value, basestring):
             value = 0
 

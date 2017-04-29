@@ -228,8 +228,8 @@ class ATS(base.JSONStatsPlugin):
             'hostnames',
             long(stats.get('proxy.process.hostdb.total_entries') or 0)
         )
-        self.add_derive_value('HostDB/Hits', 'hostnames', dns_hits)
-        self.add_derive_value('HostDB/Lookups', 'hostnames', dns_lookup)
+        dns_hits = self.add_derive_value('HostDB/Hits', 'hostnames', dns_hits)
+        dns_lookup = self.add_derive_value('HostDB/Lookups', 'hostnames', dns_lookup)
         if dns_lookup > 0:
             dns_ratio = 100 * float(dns_hits) / dns_lookup
             self.add_gauge_value('Scoreboard/HostDB/Hits', '%', dns_ratio)
@@ -239,34 +239,38 @@ class ATS(base.JSONStatsPlugin):
         hits = long(stats.get('proxy.node.cache_total_hits') or 0)
         hits_mem = long(stats.get('proxy.node.cache_total_hits_mem') or 0)
         misses = long(stats.get('proxy.node.cache_total_misses') or 0)
-        self.add_derive_value('Cache/Performance/Hits/Storage', 'requests', hits - hits_mem)
-        self.add_derive_value('Cache/Performance/Hits/Memory', 'requests', hits_mem)
-        self.add_derive_value('Cache/Performance/Misses', 'requests', misses)
+
+        storage_hits = self.add_derive_value('Cache/Performance/Hits/Storage', 'requests', hits - hits_mem)
+        memory_hits = self.add_derive_value('Cache/Performance/Hits/Memory', 'requests', hits_mem)
+        misses = self.add_derive_value('Cache/Performance/Misses', 'requests', misses)
 
         total = hits + misses
         if total > 0:
-            self.add_gauge_value('Scoreboard/Cache/Hits', '%', 100 * float(hits) / total)
-            self.add_gauge_value('Scoreboard/Storage/Hits', '%', 100 * float(hits - hits_mem) / total)
-            self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(hits_mem) / total)
+            self.add_gauge_value('Scoreboard/Cache/Hits', '%', 100 * float(storage_hits + memory_hits) / total)
+            self.add_gauge_value('Scoreboard/Storage/Hits', '%', 100 * float(storage_hits) / total)
+            self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(memory_hits) / total)
 
+        # Bandwidth
+        served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0) / 1000000
+        origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0) / 1000000
+        origin_bytes = self.add_derive_value('Cache/Bandwidth/Origin', 'megabytes', origin_bytes)
+        served_bytes = self.add_derive_value('Cache/Bandwidth/Served', 'megabytes', served_bytes)
+        if served_bytes > 0:
+            bandwidth_gain = 100 * float(served_bytes - origin_bytes) / served_bytes
+            self.add_gauge_value('Scoreboard/Bandwidth/Saved', '%', bandwidth_gain)
+
+        # Disk cache
         bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0) / megas
         bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0) / megas
-        self.add_derive_value('Cache/Storage/Size', 'megabytes', bytes_total)
-        self.add_derive_value('Cache/Storage/Used', 'megabytes', bytes_used)
+        self.add_derive_value('Cache/Disk/Size', 'megabytes', bytes_total)
+        self.add_derive_value('Cache/Disk/Used', 'megabytes', bytes_used)
         if bytes_total > 0:
-            self.add_gauge_value('Scoreboard/Storage/Used', '%', 100 * float(bytes_used) / bytes_total)
+            self.add_gauge_value('Scoreboard/Disk/Used', '%', 100 * float(bytes_used) / bytes_total)
 
+        # Memory cache
         mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0) / megas
         mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0) / megas
         self.add_derive_value('Cache/Memory/Size', 'megabytes', mem_total)
         self.add_derive_value('Cache/Memory/Used', 'megabytes', mem_used)
         if mem_total > 0:
             self.add_gauge_value('Scoreboard/Memory/Use', '%', 100 * float(mem_used) / mem_total)
-
-        served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0) / 1000000
-        origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0) / 1000000
-        self.add_derive_value('Cache/Bandwidth/Origin', 'megabytes', origin_bytes)
-        self.add_derive_value('Cache/Bandwidth/Served', 'megabytes', served_bytes)
-        if served_bytes > 0:
-            bandwidth_gain = 100 * float(served_bytes - origin_bytes) / served_bytes
-            self.add_gauge_value('Scoreboard/Bandwidth/Saved', '%', bandwidth_gain)

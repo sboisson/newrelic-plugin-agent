@@ -97,15 +97,11 @@ class ATS(base.JSONStatsPlugin):
     CONNECTIONS_TYPES = {
         'proxy.process.http.total_client_connections': 'HTTP/Client',
         'proxy.process.http.total_server_connections': 'HTTP/Server',
-        'proxy.process.http.origin_connections_throttled_out': 'HTTP/Server/Throttled',
     }
 
     # Requests
     REQUESTS_PREFIX = 'proxy.process.http.'
     REQUESTS_TYPES = {
-        'incoming_requests': 'Totals/Incoming',
-        'outgoing_requests': 'Totals/Outgoing',
-
         'head_requests': 'Methods/HEAD',
         'get_requests': 'Methods/GET',
         'post_requests': 'Methods/POST',
@@ -154,27 +150,23 @@ class ATS(base.JSONStatsPlugin):
         self.add_cache_datapoints(stats)
 
     def add_connection_datapoints(self, stats):
-        for conn_type, name in ATS.CONNECTIONS_TYPES.items():
-            value = long(stats.get(conn_type) or 0)
-            self.add_derive_value(
-                'Connections/%s' % name,
-                'connections',
-                value
-            )
+        client_connections = long(stats.get('proxy.process.http.total_client_connections') or 0)
+        server_connections = long(stats.get('proxy.process.http.total_server_connections') or 0)
+        broken_server_connections = long(stats.get('proxy.process.http.broken_server_connections') or 0)
 
-        count_key = 'proxy.process.http.total_client_connections'
-        previous_count = self.derive_last_interval.get(count_key)
-        count = long(stats.get(count_key) or 0)
-        if previous_count is not None:
-            time = float(stats.get('proxy.process.http.total_transactions_time') or 0)
-            self.add_derive_value(
-                'Connections/HTTP/Client',
-                'secs|connections',
-                time,
-                count - previous_count
-            )
+        self.add_derive_value('Connections/HTTP/Server/Broken', 'connections', broken_server_connections)
+        client_connections = self.add_derive_value('Connections/HTTP/Client', 'connections', client_connections)
+        server_connections = self.add_derive_value('Connections/HTTP/Server', 'connections', server_connections)
 
-        self.derive_last_interval[count_key] = count
+        incoming_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0)
+        client_connections = self.add_derive_value('Requests/Totals/Incoming', 'requests|connections', client_connections, client_connections)
+
+        outgoing_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
+        client_connections = self.add_derive_value('Requests/Totals/Outgoing', 'requests|connections', outgoing_requests, server_connections)
+
+        if outgoing_requests > 0:
+            requests_ratio = 100 * float(incoming_requests) / outgoing_requests
+            self.add_gauge_value('Scoreboard/Requests/Saved', '%', requests_ratio)
 
     def add_requests_datapoints(self, stats):
         for request_type, name in ATS.REQUESTS_TYPES.items():
@@ -184,12 +176,6 @@ class ATS(base.JSONStatsPlugin):
                 'requests',
                 value
             )
-
-        incoming = long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0)
-        outgoing = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
-        if outgoing > 0:
-            requests_ratio = 100 * float(incoming) / outgoing
-            self.add_gauge_value('Scoreboard/Requests/Saved', '%', requests_ratio)
 
     def add_responses_datapoints(self, stats):
         for code, text in ATS.HTTP_STATUS_CODES.items():

@@ -334,8 +334,8 @@ class ATS(base.JSONStatsPlugin):
             self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(memory_hits) / total)
 
         for key, label in ATS.CACHE_OPERATIONS.items():
-            self.add_derive_value(label + '/Success', None, long(stats.get(key + '.success') or 0), skip_if_zero=True)
-            self.add_derive_value(label + '/Failure', None, long(stats.get(key + '.failure') or 0), skip_if_zero=True)
+            self.add_derive_value(label + '/Success', 'operations', long(stats.get(key + '.success') or 0), skip_if_zero=True)
+            self.add_derive_value(label + '/Failure', 'operations', long(stats.get(key + '.failure') or 0), skip_if_zero=True)
 
         # Bandwidth
         served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0)
@@ -350,9 +350,9 @@ class ATS(base.JSONStatsPlugin):
         bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0)
         bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0)
         entries_used = long(stats.get('proxy.process.cache.direntries.used') or 0)
-        self.add_derive_value('Cache/Disk/Size', 'bytes', bytes_total)
-        self.add_derive_value('Cache/Disk/Used', 'bytes', bytes_used)
-        self.add_derive_value('Cache/Disk/Entries', None, entries_used)
+        self.add_gauge_value('Cache/Disk/Size', 'bytes', bytes_total)
+        self.add_gauge_value('Cache/Disk/Used', 'bytes', bytes_used)
+        self.add_gauge_value('Cache/Disk/Entries', 'entries', entries_used)
         if bytes_total > 0:
             self.add_gauge_value('Scoreboard/Disk/Used', '%', 100 * float(bytes_used) / bytes_total)
         if bytes_used > 0:
@@ -361,7 +361,7 @@ class ATS(base.JSONStatsPlugin):
         # Memory cache
         mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0)
         mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0)
-        self.add_derive_value('Cache/Memory/Size', 'bytes', mem_total)
-        self.add_derive_value('Cache/Memory/Used', 'bytes', mem_used)
+        self.add_gauge_value('Cache/Memory/Size', 'bytes', mem_total)
+        self.add_gauge_value('Cache/Memory/Used', 'bytes', mem_used)
         if mem_total > 0:
             self.add_gauge_value('Scoreboard/Memory/Use', '%', 100 * float(mem_used) / mem_total)

@@ -38,7 +38,7 @@ class Plugin(object):
         """
         raise NotImplementedError
 
-    def add_derive_value(self, metric_name, units, value, count=None):
+    def add_derive_value(self, metric_name, units, value, count=None, skip_if_zero=False):
         """Add a value that will derive the current value from the difference
         between the last interval value and the current value.
 
@@ -61,10 +61,14 @@ class Plugin(object):
             self.derive_values[metric] = self.metric_payload(0, count=0)
         else:
             cval = value - self.derive_last_interval[metric]
-            self.derive_values[metric] = self.metric_payload(cval, count=count)
-            LOGGER.debug('%s: Last: %r, Current: %r, Reporting: %r',
-                         metric, self.derive_last_interval[metric], value,
-                         self.derive_values[metric])
+            if cval != 0 and skip_if_zero:
+                self.derive_values[metric] = self.metric_payload(cval, count=count)
+                LOGGER.debug('%s: Last: %r, Current: %r, Reporting: %r',
+                             metric, self.derive_last_interval[metric], value,
+                             self.derive_values[metric])
+            else
+                LOGGER.debug('%s: Last: %r, Current: %r, Not reporting',
+                             metric, self.derive_last_interval[metric], value)
         self.derive_last_interval[metric] = value
         return cval
 

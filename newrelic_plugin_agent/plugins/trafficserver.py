@@ -93,10 +93,26 @@ class ATS(base.JSONStatsPlugin):
         '599': 'Network Connect Timeout Error',
     }
 
+    RESPONSES_SIZE = {
+        'proxy.process.http.response_document_size_100': '100 Bytes',
+        'proxy.process.http.response_document_size_1K': '1 KB',
+        'proxy.process.http.response_document_size_3K': '3 KB',
+        'proxy.process.http.response_document_size_5K': '5 KB',
+        'proxy.process.http.response_document_size_10K': '10 KB',
+        'proxy.process.http.response_document_size_1M': '1 MB',
+        'proxy.process.http.response_document_size_inf': '> 1 MB',
+    }
+
     # Connections
     CONNECTIONS_TYPES = {
         'proxy.process.http.total_client_connections': 'HTTP/Client',
         'proxy.process.http.total_server_connections': 'HTTP/Server',
+    }
+
+    CONNECTIONS_GAUGES = {
+        'proxy.process.http.current_client_connections': 'Scoreboard/Connections/HTTP/Client/Current',
+        'proxy.process.http.current_active_client_connections': 'Scoreboard/Connections/HTTP/Client/Active',
+        'proxy.process.http.current_server_connections': 'Scoreboard/Connections/HTTP/Server/Current',
     }
 
     # Requests
@@ -133,6 +149,17 @@ class ATS(base.JSONStatsPlugin):
         'other.unclassified': 'Unclassified',
     }
 
+    CACHE_OPERATIONS = {
+        'proxy.process.cache.lookup': 'Cache/Operations/Lookup',
+        'proxy.process.cache.write': 'Cache/Operations/Write',
+        'proxy.process.cache.update': 'Cache/Operations/Update',
+        'proxy.process.cache.read': 'Cache/Operations/Read',
+        'proxy.process.cache.remove': 'Cache/Operations/Remove',
+        'proxy.process.cache.evacuate': 'Cache/Operations/Evacuate',
+        'proxy.process.cache.scan': 'Cache/Operations/Scan',
+        'proxy.process.cache.read_busy': 'Cache/Operations/Read Busy',
+    }
+
     def add_datapoints(self, stats):
         """Add all of the data points for a node
 
@@ -149,6 +176,27 @@ class ATS(base.JSONStatsPlugin):
         self.add_transactions_datapoints(stats)
         self.add_cache_datapoints(stats)
 
+    def add_document_size_datapoints(self, metric_prefix, requests, header_size, body_size):
+        if requests > 0:
+            self.add_derive_value(
+                metric_prefix + '/Total',
+                'bytes|requests',
+                header_size + body_size,
+                requests
+            )
+            self.add_derive_value(
+                metric_prefix + '/Header',
+                'bytes|requests',
+                header_size,
+                requests
+            )
+            self.add_derive_value(
+                metric_prefix + '/Body',
+                'bytes|requests',
+                header_size,
+                requests
+            )
+
     def add_connection_datapoints(self, stats):
         client_connections = long(stats.get('proxy.process.http.total_client_connections') or 0)
         server_connections = long(stats.get('proxy.process.http.total_server_connections') or 0)
@@ -158,15 +206,90 @@ class ATS(base.JSONStatsPlugin):
         client_connections = self.add_derive_value('Connections/HTTP/Client', 'connections', client_connections)
         server_connections = self.add_derive_value('Connections/HTTP/Server', 'connections', server_connections)
 
-        incoming_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0)
-        client_connections = self.add_derive_value('Requests/Totals/Incoming', 'requests|connections', incoming_requests, client_connections)
+        incoming_requests = self.add_derive_value(
+            'Requests/Totals/Incoming',
+            'requests|connections',
+            long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0),
+            client_connections
+        )
 
-        outgoing_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
-        client_connections = self.add_derive_value('Requests/Totals/Outgoing', 'requests|connections', outgoing_requests, server_connections)
+        self.add_document_size_datapoints(
+            'Responses/Sizes/Client',
+            incoming_requests,
+            long(stats.get('proxy.process.http.user_agent_response_header_total_size') or 0),
+            long(stats.get('proxy.process.http.user_agent_response_document_total_size') or 0)
+        )
+
+        outgoing_requests = self.add_derive_value(
+            'Requests/Totals/Outgoing',
+            'requests|connections',
+            long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0),
+            server_connections
+        )
+
+        self.add_document_size_datapoints(
+            'Responses/Sizes/Client',
+            incoming_requests,
+            long(stats.get('proxy.process.http.origin_server_response_header_total_size') or 0),
+            long(stats.get('proxy.process.http.origin_server_response_document_total_size') or 0)
+        )
 
         if outgoing_requests > 0:
             requests_ratio = 100 * float(incoming_requests) / outgoing_requests
             self.add_gauge_value('Scoreboard/Requests/Saved', '%', requests_ratio)
+
+        for key, label for ATS.CONNECTIONS_GAUGES.items():
+            self.add_gauge_value(
+                label,
+                'connections',
+                float(stats.get(key) or 0)
+            )
+
+        keepalive_timeout_key = 'proxy.process.net.dynamic_keep_alive_timeout_in_count'
+        keepalive_timeouts = long(stats.get(keepalive_timeout_key) or 0)
+        previous_keepalive_timeouts = self.derive_last_interval.get(keepalive_timeout_key)
+        if previous_keepalive_timeouts is not None:
+            self.add_derive_value(
+                'Scoreboard/Keep Alive/Timeout',
+                'seconds|connections',
+                long(stats.get('proxy.process.net.dynamic_keep_alive_timeout_in_total') or 0),
+                keepalive_timeouts - previous_keepalive_timeouts
+            )
+        self.derive_last_interval[keepalive_timeout_key] = keepalive_timeouts
+
+
+
+# proxy.process.http.completed_requests
+# proxy.process.http.connect_requests
+
+# proxy.process.cache.gc_bytes_evacuated
+# proxy.process.cache.evacuate.active
+# proxy.process.cache.evacuate.failure
+# proxy.process.cache.evacuate.success
+
+# proxy.process.cache.read_busy.failure
+# proxy.process.cache.read_busy.success
+# proxy.process.cache.read.failure
+# proxy.process.cache.read.success
+# proxy.process.cache.remove.failure
+# proxy.process.cache.remove.success
+# proxy.process.cache.scan.failure
+# proxy.process.cache.scan.success
+# proxy.process.cache.update.failure
+# proxy.process.cache.update.success
+# proxy.process.cache.write.failure
+# proxy.process.cache.write.success
+
+# proxy.process.http.cache_read_error
+# proxy.process.http.cache_read_errors
+# proxy.process.http.cache_updates
+# proxy.process.http.cache_write_errors
+# proxy.process.http.cache_writes
+
+# proxy.process.net.accepts_currently_open
+
+# proxy.process.congestion.congested_on_conn_failures
+# proxy.process.congestion.congested_on_max_connection
 
     def add_requests_datapoints(self, stats):
         for request_type, name in ATS.REQUESTS_TYPES.items():
@@ -187,6 +310,13 @@ class ATS(base.JSONStatsPlugin):
                 else:
                     metric_name = 'Responses/%cxx/%s %s' % (code[0], code, text)
                 self.add_derive_value(metric_name, 'responses', long(value), skip_if_zero=True)
+
+        for key, text in ATS.RESPONSES_SIZE.items():
+            self.add_derive_value(
+                'Responses/Sizes/Distribution/%s' % text,
+                'responses',
+                long(stats.get(key) or 0)
+            )
 
     def add_transactions_datapoints(self, stats):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
@@ -223,7 +353,6 @@ class ATS(base.JSONStatsPlugin):
             self.add_gauge_value('Scoreboard/HostDB/Hits', '%', dns_ratio)
 
     def add_cache_datapoints(self, stats):
-        megas = 1000000
         hits = long(stats.get('proxy.node.cache_total_hits') or 0)
         hits_mem = long(stats.get('proxy.node.cache_total_hits_mem') or 0)
         misses = long(stats.get('proxy.node.cache_total_misses') or 0)
@@ -238,27 +367,35 @@ class ATS(base.JSONStatsPlugin):
             self.add_gauge_value('Scoreboard/Disk/Hits', '%', 100 * float(storage_hits) / total)
             self.add_gauge_value('Scoreboard/Memory/Hits', '%', 100 * float(memory_hits) / total)
 
+        for key, label in ATS.CACHE_OPERATIONS.items():
+            self.add_derive_value(label + '/Success', None, long(stats.get(key + '.success') or 0), skip_if_zero=True)
+            self.add_derive_value(label + '/Failure', None, long(stats.get(key + '.failure') or 0), skip_if_zero=True)
+
         # Bandwidth
-        served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0) / 1000000
-        origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0) / 1000000
-        origin_bytes = self.add_derive_value('Cache/Bandwidth/Origin', 'megabytes', origin_bytes)
-        served_bytes = self.add_derive_value('Cache/Bandwidth/Served', 'megabytes', served_bytes)
+        served_bytes = float(stats.get('proxy.node.user_agent_total_bytes') or 0)
+        origin_bytes = float(stats.get('proxy.node.origin_server_total_bytes') or 0)
+        origin_bytes = self.add_derive_value('Cache/Bandwidth/Origin', 'bytes', origin_bytes)
+        served_bytes = self.add_derive_value('Cache/Bandwidth/Served', 'bytes', served_bytes)
         if served_bytes > 0:
             bandwidth_gain = 100 * float(served_bytes - origin_bytes) / served_bytes
             self.add_gauge_value('Scoreboard/Bandwidth/Saved', '%', bandwidth_gain)
 
         # Disk cache
-        bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0) / megas
-        bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0) / megas
-        self.add_derive_value('Cache/Disk/Size', 'megabytes', bytes_total)
-        self.add_derive_value('Cache/Disk/Used', 'megabytes', bytes_used)
+        bytes_total = float(stats.get('proxy.process.cache.bytes_total') or 0)
+        bytes_used = float(stats.get('proxy.process.cache.bytes_used') or 0)
+        entries_used = long(stats.get('proxy.process.cache.direntries.used') or 0)
+        self.add_derive_value('Cache/Disk/Size', 'bytes', bytes_total)
+        self.add_derive_value('Cache/Disk/Used', 'bytes', bytes_used)
+        self.add_derive_value('Cache/Disk/Entries', None, entries_used)
         if bytes_total > 0:
             self.add_gauge_value('Scoreboard/Disk/Used', '%', 100 * float(bytes_used) / bytes_total)
+        if bytes_used > 0:
+            self.add_gauge_value('Scoreboard/Disk/Entry Size', '%', bytes_used / entries_used)
 
         # Memory cache
-        mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0) / megas
-        mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0) / megas
-        self.add_derive_value('Cache/Memory/Size', 'megabytes', mem_total)
-        self.add_derive_value('Cache/Memory/Used', 'megabytes', mem_used)
+        mem_total = float(stats.get('proxy.process.cache.ram_cache.total_bytes') or 0)
+        mem_used = float(stats.get('proxy.process.cache.ram_cache.bytes_used') or 0)
+        self.add_derive_value('Cache/Memory/Size', 'bytes', mem_total)
+        self.add_derive_value('Cache/Memory/Used', 'bytes', mem_used)
         if mem_total > 0:
             self.add_gauge_value('Scoreboard/Memory/Use', '%', 100 * float(mem_used) / mem_total)

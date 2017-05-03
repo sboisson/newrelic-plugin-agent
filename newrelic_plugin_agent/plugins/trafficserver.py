@@ -193,7 +193,7 @@ class ATS(base.JSONStatsPlugin):
             self.add_derive_value(
                 metric_prefix + '/Body',
                 'bytes|requests',
-                header_size,
+                body_size,
                 requests
             )
 

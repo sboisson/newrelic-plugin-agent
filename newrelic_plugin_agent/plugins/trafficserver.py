@@ -174,7 +174,8 @@ class ATS(base.JSONStatsPlugin):
             self.add_derive_value(
                 'Requests/%s' % name,
                 'requests',
-                value
+                value,
+                skip_if_zero=True
             )
 
     def add_responses_datapoints(self, stats):
@@ -185,7 +186,7 @@ class ATS(base.JSONStatsPlugin):
                     metric_name = 'Scoreboard/Responses/%s %s' % (code, text)
                 else:
                     metric_name = 'Responses/%cxx/%s %s' % (code[0], code, text)
-                self.add_derive_value(metric_name, 'responses', long(value))
+                self.add_derive_value(metric_name, 'responses', long(value), skip_if_zero=True)
 
     def add_transactions_datapoints(self, stats):
         for transaction, text in ATS.TRANSACTION_TYPES.items():
@@ -200,7 +201,8 @@ class ATS(base.JSONStatsPlugin):
                     'Transactions/%s' % text,
                     'secs|transactions',
                     time,
-                    count - previous_count
+                    count - previous_count,
+                    skip_if_zero=True
                 )
 
             self.derive_last_interval[count_key] = count

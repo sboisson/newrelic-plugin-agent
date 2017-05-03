@@ -228,7 +228,7 @@ class ATS(base.JSONStatsPlugin):
         )
 
         self.add_document_size_datapoints(
-            'Responses/Sizes/Client',
+            'Responses/Sizes/Server',
             incoming_requests,
             long(stats.get('proxy.process.http.origin_server_response_header_total_size') or 0),
             long(stats.get('proxy.process.http.origin_server_response_document_total_size') or 0)

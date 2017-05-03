@@ -159,7 +159,7 @@ class ATS(base.JSONStatsPlugin):
         server_connections = self.add_derive_value('Connections/HTTP/Server', 'connections', server_connections)
 
         incoming_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'incoming_requests') or 0)
-        client_connections = self.add_derive_value('Requests/Totals/Incoming', 'requests|connections', client_connections, client_connections)
+        client_connections = self.add_derive_value('Requests/Totals/Incoming', 'requests|connections', incoming_requests, client_connections)
 
         outgoing_requests = long(stats.get(ATS.REQUESTS_PREFIX + 'outgoing_requests') or 0)
         client_connections = self.add_derive_value('Requests/Totals/Outgoing', 'requests|connections', outgoing_requests, server_connections)

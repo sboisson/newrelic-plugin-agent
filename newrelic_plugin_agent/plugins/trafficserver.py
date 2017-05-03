@@ -284,7 +284,7 @@ class ATS(base.JSONStatsPlugin):
     def add_document_size_datapoints(self, metric_prefix, requests, header_size, body_size):
         if requests > 0:
             self.add_derive_value(
-                metric_prefix + '/Total',
+                metric_prefix,
                 'bytes|requests',
                 header_size + body_size,
                 requests

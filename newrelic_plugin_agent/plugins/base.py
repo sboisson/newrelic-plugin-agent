@@ -66,7 +66,7 @@ class Plugin(object):
                 LOGGER.debug('%s: Last: %r, Current: %r, Reporting: %r',
                              metric, self.derive_last_interval[metric], value,
                              self.derive_values[metric])
-            else
+            else:
                 LOGGER.debug('%s: Last: %r, Current: %r, Not reporting',
                              metric, self.derive_last_interval[metric], value)
         self.derive_last_interval[metric] = value

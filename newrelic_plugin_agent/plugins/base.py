@@ -61,7 +61,7 @@ class Plugin(object):
             self.derive_values[metric] = self.metric_payload(0, count=0)
         else:
             cval = value - self.derive_last_interval[metric]
-            if cval != 0 and skip_if_zero:
+            if cval != 0 or not skip_if_zero:
                 self.derive_values[metric] = self.metric_payload(cval, count=count)
                 LOGGER.debug('%s: Last: %r, Current: %r, Reporting: %r',
                              metric, self.derive_last_interval[metric], value,
